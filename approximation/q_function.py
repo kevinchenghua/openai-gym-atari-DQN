@@ -95,14 +95,14 @@ class QFunction():
         Returns:
             weights(dict): The weights dictionary of QFunction.
         """
-        weights = []
+        weights = {}
         for key in self.weights:
             weights[key] = self.weights[key].get_value()
         return weights
         
     def get_graph(self):
         """This method return the computation graph of QFunction."""
-        return self.input, self.action, self.output, self.output_a, self.output_max, self.a_max
+        return self.input, self.action, self.output, self.output_a, self.output_max, self.a_max, self.weights
     
     def _init_weights(self):
         """This is a helper method for __init__.
