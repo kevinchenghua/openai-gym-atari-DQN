@@ -34,7 +34,7 @@ class QFunction():
         self.weights = self._init_weights()
         
         # build the computation graph
-        self.input, self.output = self._build_forward()
+        self.input, self.action, self.output, self.output_a, self.output_max, self.a_max = self._build_forward()
         
     def _init_weights(self):
         """This is a helper method for __init__.
@@ -72,11 +72,16 @@ class QFunction():
         This method build the theano computation graph of Q function from input to output.
         
         Returns:
-            [input, output]: Theano variable.
+            [input, action, output]: Theano variable.
                 input: Represent the input with shape (#batch, input_channel, input_width, input_height).
-                see: Represent whether see anything (#batch).
+                action: Represent the action taken with shape (#batch).
+                output: Represent the Q-value for each action with shape (#batch, output_dim).
+                output_a: Represent the Q-value of the action with shape (#batch).
+                output_max: Represent the max Q-value with shape (#batch).
+                a_max: Represent the action of max Q-value with shape (#batch).
         """
         input = T.tensor4('input')
+        action = T.ivector('action')
     
         conv1 = T.nnet.conv2d(input, self.weights['conv1_W'], border_mode='full', subsample=(self.conv1_stride, self.conv1_stride)) + self.weights['conv1_b'][None, :, None, None]
         act1 = T.nnet.relu(conv1)
@@ -89,4 +94,7 @@ class QFunction():
         act4 = T.nnet.relu(full)
         output = T.dot(act4, self.weights['output_W']) + self.weights['output_b']
         
-        return input, output
+        output_a = output[T.arange(output.shape[0]), action]
+        output_max, a_max = T.max_and_argmax(output,axis=1)
+        
+        return input, action, output, output_a, output_max, a_max 
