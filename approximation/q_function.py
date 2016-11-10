@@ -5,6 +5,44 @@ import theano
 import theano.tensor as T
 
 class QFunction():
+    """This is a class of modeling Q-value
+    
+    This class contain the weights and computation graph for Q-value.
+    
+    Attributes: 
+        input_width(int): The #width of input.
+        input_height(int): The #height of input.
+        input_channel(int): The #channel of input.
+        output_dim(int): The # of output dimension.
+        
+        conv1_window_size(int): The # of window size for the 1st convolution layer.
+        conv1_stride(int): The # of stride for the 1st convolution layer.
+        conv1_filter(int): The # of filter for the 1st convolution layer.
+        conv2_window_size(int): The # of window size for the 2nd convolution layer.
+        conv2_stride(int): The # of stride for the 2nd convolution layer.
+        conv2_filter(int): The # of filter for the 2nd convolution layer.
+        conv3_window_size(int): The # of window size for the 3rd convolution layer.
+        conv3_stride(int): The # of stride for the 3rd convolution layer.
+        conv3_filter(int): The # of filter for the 3rd convolution layer.
+        full_in_dim(int): The # of dimension for the input of full connected layer(output of the 3rd convolution layer).
+        full_out_dim(int): The # of dimension for the output of full connected layer.
+        
+        weights(dict): The dictionary record the theano shared variables of the network's weights.
+        
+        input: The theano variable of the input with shape (#batch, input_channel, input_width, input_height).
+        action: The theano variable of the action taken with shape (#batch).
+        output: The theano variable of the Q-value for each action with shape (#batch, output_dim).
+        output_a: The theano variable of the Q-value of the action with shape (#batch).
+        output_max: The theano variable of the max Q-value with shape (#batch).
+        a_max: The theano variable of the action of max Q-value with shape (#batch).
+    
+    Args:
+        input_width(int): The #width of input.
+        input_height(int): The #height of input.
+        input_channel(int): The #channel of input.
+        output_dim(int): The # of output dimension.
+    
+    """
     def __init__(self, input_width, input_height, input_channel, output_dim):
         # input & output dimension
         self.input_width = input_width
@@ -35,7 +73,37 @@ class QFunction():
         
         # build the computation graph
         self.input, self.action, self.output, self.output_a, self.output_max, self.a_max = self._build_forward()
+    
+    def set_weights(self, weights):
+        """
+        This is a method to set the weights of QFunction.
         
+        Args:
+            weights(dict): The weights dictionary to set QFunction.
+        """
+        for key in self.weights:
+            if key not in weights:
+                raise Exception("The weights can't be loaded to the Location network because %s is not in weights" % key)
+            elif weights[key].shape != self.weights[key].get_value().shape:
+                raise Exception("The weights can't be loaded to the Location network because of the shape error.")
+            self.weights[key].set_value(weights[key])
+            
+    def get_weights(self):
+        """
+        This is a method to get the weights of QFunction.
+        
+        Returns:
+            weights(dict): The weights dictionary of QFunction.
+        """
+        weights = []
+        for key in self.weights:
+            weights[key] = self.weights[key].get_value()
+        return weights
+        
+    def get_graph(self):
+        """This method return the computation graph of QFunction."""
+        return self.input, self.action, self.output, self.output_a, self.output_max, self.a_max
+    
     def _init_weights(self):
         """This is a helper method for __init__.
         
