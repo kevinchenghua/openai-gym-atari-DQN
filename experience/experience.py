@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Experience():
-    def __init__(self, env, memory_size=100000, history_length=4, state_width=84, state_height=84, discount=0.99):
+    def __init__(self, env, memory_size=10000, history_length=4, state_width=84, state_height=84, discount=0.99):
         # environment of atari game
         self.env = env
         # parameters for experience
@@ -36,6 +36,27 @@ class Experience():
             gray_height = float(gray.shape[2])
             state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_width])
         return state
+        
+    def sample(self, size):
+        """This is a method for sampling memory data.
+        
+        This method sample #size memory data with replacement.
+        
+        Args:
+            size(int): The number of data to be sampled.
+        
+        Returns:
+            samples(list): The list contain #size of Transition data.
+        """
+        index = np.random.randint(self.memory_size, size=size)
+        samples = []
+        for i in index:
+            sample.append(self.memory[i])
+        return samples
+        
+    def update(self, new_transition):
+        """This method update the memory with new transition."""
+        self.memory.append(new_transition)
         
     def _init_memory(self):
         """This is a helper method for __init__.
