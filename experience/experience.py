@@ -1,6 +1,7 @@
 from collections import deque
 from scipy.ndimage.interpolation import zoom
 import numpy as np
+import sys
 
 
 class Experience():
@@ -34,7 +35,7 @@ class Experience():
             gray = np.array(obs).mean(3)
             gray_width = float(gray.shape[1])
             gray_height = float(gray.shape[2])
-            state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_width])
+            state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_height])
         return state
         
     def sample(self, size):
@@ -51,7 +52,7 @@ class Experience():
         index = np.random.randint(self.memory_size, size=size)
         samples = []
         for i in index:
-            sample.append(self.memory[i])
+            samples.append(self.memory[i])
         return samples
         
     def update(self, new_transition):
@@ -87,6 +88,7 @@ class Experience():
                 obs.append(ob)
                 state_next = self.preprocess(obs)
                 memory.append(Transition(state, reward, action, state_next, self.discount))
+                sys.stdout.write('Initialize the memory: %d / %d' % (len(memory), self.memory_size))
         return memory
     
 
