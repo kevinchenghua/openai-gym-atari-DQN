@@ -1,13 +1,17 @@
 from collections import deque
+from scipy.ndimage.interpolation import zoom
 import numpy as np
 
+
 class Experience():
-    def __init__(self, env, memory_size=100000, history_length=4, discount=0.99):
+    def __init__(self, env, memory_size=100000, history_length=4, state_width=84, state_height=84, discount=0.99):
         # environment of atari game
         self.env = env
         # parameters for experience
         self.memory_size = memory_size
         self.history_length = history_length
+        self.state_width = state_width
+        self.state_height = state_height
         self.discount = discount
         # initialize the memory
         self.memory = self._init_memory()
@@ -27,7 +31,10 @@ class Experience():
         if obs[-1] is None:
             state = None
         else:
-            state = np.array(obs)
+            gray = np.array(obs).mean(3)
+            gray_width = float(gray.shape[1])
+            gray_height = float(gray.shape[2])
+            state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_width])
         return state
         
     def _init_memory(self):
@@ -44,8 +51,8 @@ class Experience():
             obs = deque(maxlen=self.history_length)
             obs.append(self.env.reset())
             for i in range(self.history_length):
-                action = env.action_space.sample()
-                ob, reward, done, info = env.step(action)
+                action = self.env.action_space.sample()
+                ob, reward, done, info = self.env.step(action)
                 if done:
                     break
                 obs.append(ob)
@@ -54,8 +61,8 @@ class Experience():
             # loop for recording transitions to the memory
             while not done and len(memory) < self.memory_size:
                 state = self.preprocess(obs)
-                action = env.action_space.sample()
-                ob, reward, done, info = env.step(action)
+                action = self.env.action_space.sample()
+                ob, reward, done, info = self.env.step(action)
                 obs.append(ob)
                 state_next = self.preprocess(obs)
                 memory.append(Transition(state, reward, action, state_next, self.discount))
@@ -68,5 +75,5 @@ class Transition():
         self.state = s
         self.reward = r
         self.action = a
-        self.state_next = s_next if s_next !=None else s
-        self.discount = discount if s_next !=None else 0
+        self.state_next = s_next if s_next is not None else s
+        self.discount = discount if s_next is not None else 0
