@@ -88,7 +88,8 @@ class Experience():
                 obs.append(ob)
                 state_next = self.preprocess(obs)
                 memory.append(Transition(state, reward, action, state_next, self.discount))
-                sys.stdout.write('Initialize the memory: %d / %d' % (len(memory), self.memory_size))
+                sys.stdout.write("Initialize the memory: %d / %d \r" % (len(memory), self.memory_size))
+                sys.stdout.flush()
         return memory
     
 
