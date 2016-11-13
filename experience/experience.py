@@ -47,12 +47,36 @@ class Experience():
             size(int): The number of data to be sampled.
         
         Returns:
-            samples(list): The list contain #size of Transition data.
+            samples(list): [states, actions, rewards, states_next, discounts]
+                states(float32 numpy array): The state samples with shape (#size, input_channel, input_width, input_height).
+                actions(int32 numpy array): The action samples with shape (#size).
+                rewards(float32 numpy array): The reward samples with shape (#size).
+                state_nexts(float32 numpy array): The next state samples with shape (#size, input_channel, input_width, input_height).
+                discounts(float32 numpy array): The discount samples with shape (#size).
         """
         index = np.random.randint(self.memory_size, size=size)
-        samples = []
+        
+        states = []
+        actions = []
+        rewards = []
+        states_next = []
+        discounts =[]
+        
         for i in index:
-            samples.append(self.memory[i])
+            states.append(self.memory[i].state)
+            actions.append(self.memory[i].action)
+            rewards.append(self.memory[i].reward)
+            states_next.append(self.memory[i].state_next)
+            discounts.append(self.memort[i].discount)
+            
+        states = np.stack(states)
+        actions = np.stack(actions)
+        rewards = np.stack(rewards)
+        states_next = np.stack(states_next)
+        discounts = np.stack(discounts)
+        
+        samples = [states, actions, rewards, states_next, discounts]
+        
         return samples
         
     def update(self, new_transition):
@@ -87,7 +111,7 @@ class Experience():
                 ob, reward, done, info = self.env.step(action)
                 obs.append(ob)
                 state_next = self.preprocess(obs)
-                memory.append(Transition(state, reward, action, state_next, self.discount))
+                memory.append(Transition(state, action, reward, state_next, self.discount))
                 sys.stdout.write("Initialize the memory: %d / %d \r" % (len(memory), self.memory_size))
                 sys.stdout.flush()
         return memory
@@ -95,9 +119,9 @@ class Experience():
 
     
 class Transition():
-    def __init__(self, s, r, a, s_next, discount):
+    def __init__(self, s, a, r, s_next, discount):
         self.state = s
-        self.reward = r
         self.action = a
+        self.reward = r
         self.state_next = s_next if s_next is not None else s
         self.discount = discount if s_next is not None else 0
