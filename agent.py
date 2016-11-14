@@ -35,11 +35,12 @@ class Agent():
         self.er_end = 0.1               # ending exploration rate
         self.er_frame = 100000          # frames of exploration from start to end
         self.target_update_frame = 1000 # frames between target updates
+        self.checkpoint_frame = 5000
         
         # initialize the Q function, action choosing function and updating function
         self.Q, self.Q_target = self._init_Q(self.input_width, self.input_height, self.input_channel, self.output_dim)
         self.f_action = self._build_Q_action_choosing()
-        self.f_grad_shared, self.f_update, f_Q_max = self._build_updation()
+        self.f_grad_shared, self.f_update, self.f_Q_max = self._build_updation()
         
         # initialize the experience memory
         self.memory = Experience(env, self.memory_size, self.history_length, self.input_width, self.input_height, self.discount)
@@ -47,7 +48,7 @@ class Agent():
         
         # training the agent
         self._train(self.history_length, self.episodes, self.batch_size, self.evaluate_batch_size, 
-                    self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame)
+                    self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame, self.checkpoint_frame)
     
     def _init_Q(self, input_width, input_height, input_channel, output_dim):
         """This is a helper method for __init__.
@@ -113,11 +114,16 @@ class Agent():
         
         return f_grad_shared, f_update, f_Q_max
         
-    def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame):
-        self.env.monitor.start('result/'+name, force=True)
+    def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame, checkpoint_frame, record_epoch):
+        self.env.monitor.start('result/%s'%(self.name), force=True)
         frame = 0
+        history_Q_ave = []
+        history_loss = []
+        history_score = []
+        epoch_record = []
         for i in range(episodes):
             # initialize the episode
+            print "%d episode start." % (i)
             obs = deque(maxlen=history_length)
             ob = self.env.reset()
             for j in range(history_length):
@@ -142,17 +148,32 @@ class Agent():
                 score += reward
                 # train Q with a batch Transition
                 states, actions, rewards, states_next, discounts = self.memory.sample(batch_size)
-                loss = numpy.append(loss, self.f_grad_shared(states, actions, rewards, states_next, discounts))
+                loss = np.append(loss, self.f_grad_shared(states, actions, rewards, states_next, discounts))
                 self.f_update(lr)
                 frame += 1
+                sys.stdout.write("Frame: %d \r" % (frame))
+                sys.stdout.flush()
+                # target Q update
                 if frame % target_update_frame == 0:
                     self.Q_target.set_weights(self.Q.get_weights())
+                # checkpoint
+                if frame % checkpoint_frame == 0:
+                    print "Saving weights...",
+                    Q_weights = self.Q.get_weights()
+                    np.savez('result/%s/log.npz'%(self.name), history_Q_ave=history_Q_ave, history_loss=history_loss, 
+                                                              history_score=history_score, epoch_record=epoch_record, **Q_weights)
+                    print 'done'
+                    
             # display the result of this episodes
             print "Training episodes %d get score: %f" % (i, score)
             print "Average loss: %f" % (loss.mean())
             if i % self.evaluate_episodes == 0:
                 states,_,_,_,_ = self.evaluation_memory.sample(evaluate_batch_size)
                 Q_ave = self.f_Q_max(states).mean()
+                history_Q_ave.append(Q_ave)
+                history_loss.append(loss.mean())
+                history_score.append(score)
+                epoch_record.append(i)
                 print "Episode %d, evaluate average Q value: %f" % (i, Q_ave)
         self.env.monitor.close()
                 
