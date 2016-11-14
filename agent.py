@@ -8,11 +8,12 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-theano.config.floatX = float32
+theano.config.floatX = 'float32'
 
 class Agent():
-    def __init__(self, env):
+    def __init__(self, env, name):
         # environment
+        self.name = name
         self.env = env
         # model parameters
         self.input_width = 84
@@ -42,7 +43,7 @@ class Agent():
         
         # initialize the experience memory
         self.memory = Experience(env, self.memory_size, self.history_length, self.input_width, self.input_height, self.discount)
-        self.evaluation_memory = Experience(env, self.evaluation_memory_size self.history_length, self.input_width, self.input_height, self.discount)
+        self.evaluation_memory = Experience(env, self.evaluation_memory_size, self.history_length, self.input_width, self.input_height, self.discount)
         
         # training the agent
         self._train(self.history_length, self.episodes, self.batch_size, self.evaluate_batch_size, 
@@ -113,6 +114,7 @@ class Agent():
         return f_grad_shared, f_update, f_Q_max
         
     def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame):
+        self.env.monitor.start('result/'+name, force=True)
         frame = 0
         for i in range(episodes):
             # initialize the episode
@@ -126,6 +128,7 @@ class Agent():
             loss = np.array([])
             while not done:
                 # play with one step
+                self.env.render()
                 state = self.memory.preprocess(obs)
                 if frame < er_end:
                     er_rate = er_start*(er_frame - frame)/er_frame + er_end*frame/er_frame
@@ -139,11 +142,11 @@ class Agent():
                 score += reward
                 # train Q with a batch Transition
                 states, actions, rewards, states_next, discounts = self.memory.sample(batch_size)
-                loss.append(self.f_grad_shared(states, actions, rewards, states_next, discounts))
+                loss = numpy.append(loss, self.f_grad_shared(states, actions, rewards, states_next, discounts))
                 self.f_update(lr)
                 frame += 1
                 if frame % target_update_frame == 0:
-                    self.Q_target.set_weights(self.Q.get_weights)
+                    self.Q_target.set_weights(self.Q.get_weights())
             # display the result of this episodes
             print "Training episodes %d get score: %f" % (i, score)
             print "Average loss: %f" % (loss.mean())
@@ -151,6 +154,7 @@ class Agent():
                 states,_,_,_,_ = self.evaluation_memory.sample(evaluate_batch_size)
                 Q_ave = self.f_Q_max(states).mean()
                 print "Episode %d, evaluate average Q value: %f" % (i, Q_ave)
+        self.env.monitor.close()
                 
     def choose_action_e_greedy(self, er_rate, state):
         """This method return an action.

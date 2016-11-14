@@ -35,7 +35,7 @@ class Experience():
             gray = np.array(obs).mean(3)
             gray_width = float(gray.shape[1])
             gray_height = float(gray.shape[2])
-            state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_height])
+            state = zoom(gray,[1, self.state_width/gray_width, self.state_height/gray_height]).astype('float32')
         return state
         
     def sample(self, size):
@@ -114,14 +114,15 @@ class Experience():
                 memory.append(Transition(state, action, reward, state_next, self.discount))
                 sys.stdout.write("Initialize the memory: %d / %d \r" % (len(memory), self.memory_size))
                 sys.stdout.flush()
+            print "Initialize the memory: done."
         return memory
     
 
     
 class Transition():
     def __init__(self, s, a, r, s_next, discount):
-        self.state = s
-        self.action = a
-        self.reward = r
-        self.state_next = s_next if s_next is not None else s
-        self.discount = discount if s_next is not None else 0
+        self.state = np.float32(s)
+        self.action = np.int32(a)
+        self.reward = np.float32(r)
+        self.state_next = np.float32(s_next) if s_next is not None else s
+        self.discount = np.float32(discount) if s_next is not None else 0
