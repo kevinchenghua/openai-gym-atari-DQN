@@ -67,7 +67,7 @@ class Experience():
             actions.append(self.memory[i].action)
             rewards.append(self.memory[i].reward)
             states_next.append(self.memory[i].state_next)
-            discounts.append(self.memort[i].discount)
+            discounts.append(self.memory[i].discount)
             
         states = np.stack(states)
         actions = np.stack(actions)

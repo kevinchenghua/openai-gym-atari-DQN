@@ -8,6 +8,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 
+theano.config.floatX = float32
+
 class Agent():
     def __init__(self, env):
         # environment
@@ -39,7 +41,7 @@ class Agent():
         self.memory = Experience(env, self.memory_size, self.history_length, self.input_width, self.input_height, self.discount)
         
         # training the agent
-        self._train()
+        self._train(self.history_length, self.episodes, self.batch_size, self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame)
     
     def _init_Q(self, input_width, input_height, input_channel, output_dim):
         """This is a helper method for __init__.
@@ -124,8 +126,8 @@ class Agent():
                 state_next = self.memory.preprocess(obs)
                 self.memory.update(Transition(state, action, reward, state_next, self.discount))
                 # train Q with a batch Transition
-                samples = self.memory.sample(batch_size)
-                self.f_grad_shared(samples)
+                states, actions, rewards, states_next, discounts = self.memory.sample(batch_size)
+                self.f_grad_shared(states, actions, rewards, states_next, discounts)
                 self.f_update(lr)
                 frame += 1
                 if frame % target_update_frame == 0:
