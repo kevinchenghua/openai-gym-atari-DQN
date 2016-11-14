@@ -113,6 +113,8 @@ class Agent():
                 obs.append(ob)
             done = False
             # start episode playing and training
+            score = 0
+            loss = np.array([])
             while not done:
                 # play with one step
                 state = self.memory.preprocess(obs)
@@ -125,14 +127,17 @@ class Agent():
                 obs.append(ob)
                 state_next = self.memory.preprocess(obs)
                 self.memory.update(Transition(state, action, reward, state_next, self.discount))
+                score += reward
                 # train Q with a batch Transition
                 states, actions, rewards, states_next, discounts = self.memory.sample(batch_size)
-                self.f_grad_shared(states, actions, rewards, states_next, discounts)
+                loss.append(self.f_grad_shared(states, actions, rewards, states_next, discounts))
                 self.f_update(lr)
                 frame += 1
                 if frame % target_update_frame == 0:
                     self.Q_target.set_weights(self.Q.get_weights)
-                
+            # display the result of this episodes
+            print "Training episodes %d get score: %f" % (i, score)
+            print "Average loss: %f" % (loss.mean())
                 
     def choose_action_e_greedy(self, er_rate, state):
         """This method return an action.
