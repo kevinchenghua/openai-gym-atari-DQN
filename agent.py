@@ -21,11 +21,14 @@ class Agent():
         self.output_dim = self.env.action_space.n
         # memory parameters
         self.memory_size = 10000
+        self.evaluation_memory_size = 10000
         self.history_length = 4
         # training parameters
         self.episodes = 1000000
         self.discount = 0.99
         self.batch_size = 32
+        self.evaluate_episodes = 10
+        self.evaluate_batch_size = 500
         self.lr = 0.00025
         self.er_start = 1.              # starting exploration rate
         self.er_end = 0.1               # ending exploration rate
@@ -35,13 +38,15 @@ class Agent():
         # initialize the Q function, action choosing function and updating function
         self.Q, self.Q_target = self._init_Q(self.input_width, self.input_height, self.input_channel, self.output_dim)
         self.f_action = self._build_Q_action_choosing()
-        self.f_grad_shared, self.f_update = self._build_updation()
+        self.f_grad_shared, self.f_update, f_Q_max = self._build_updation()
         
         # initialize the experience memory
         self.memory = Experience(env, self.memory_size, self.history_length, self.input_width, self.input_height, self.discount)
+        self.evaluation_memory = Experience(env, self.evaluation_memory_size self.history_length, self.input_width, self.input_height, self.discount)
         
         # training the agent
-        self._train(self.history_length, self.episodes, self.batch_size, self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame)
+        self._train(self.history_length, self.episodes, self.batch_size, self.evaluate_batch_size, 
+                    self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame)
     
     def _init_Q(self, input_width, input_height, input_channel, output_dim):
         """This is a helper method for __init__.
@@ -87,11 +92,14 @@ class Agent():
                 loss(float): The loss output.
             f_update(function): lr -> (with side-effect of updating Q_weights)
                 lr(float): The learning rate to update Q_weights.
+            f_Q_max(function): [state] -> Q_max
+                state(float32 numpy array): The state input with shape (#batch, input_channel, input_width, input_height).
+                Q_max(float32 numpy array): The max Q value according to the state with shape (#batch)
         """
         discount = T.vector()
         reward = T.vector()
         lr = T.scalar()
-        state, action, _, Q_a, _, _, Q_weights = self.Q.get_graph()
+        state, action, _, Q_a, Q_max, _, Q_weights = self.Q.get_graph()
         state_next, _, _, _, Q_target_next_max, _, _ = self.Q_target.get_graph()
         inputs = [state, action, reward, state_next, discount]
         
@@ -100,10 +108,11 @@ class Agent():
         grads = T.grad(cost=None, wrt=itemlist(Q_weights), disconnected_inputs='raise', known_grads={Q_a: target-Q_a})
         
         f_grad_shared, f_update = rmsprop(lr, Q_weights, grads, inputs, loss)
+        f_Q_max = theano.function([state], Q_max)
         
-        return f_grad_shared, f_update
+        return f_grad_shared, f_update, f_Q_max
         
-    def _train(self, history_length, episodes, batch_size, lr, er_start, er_end, er_frame, target_update_frame):
+    def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame):
         frame = 0
         for i in range(episodes):
             # initialize the episode
@@ -138,6 +147,10 @@ class Agent():
             # display the result of this episodes
             print "Training episodes %d get score: %f" % (i, score)
             print "Average loss: %f" % (loss.mean())
+            if i % self.evaluate_episodes == 0:
+                states,_,_,_,_ = self.evaluation_memory.sample(evaluate_batch_size)
+                Q_ave = self.f_Q_max(states).mean()
+                print "Episode %d, evaluate average Q value: %f" % (i, Q_ave)
                 
     def choose_action_e_greedy(self, er_rate, state):
         """This method return an action.
