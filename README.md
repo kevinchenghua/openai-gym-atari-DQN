@@ -1,6 +1,6 @@
 # openai-gym-atari-DQN
 
-# Test Script
+## Test Script
 ```
 python test.py
 ```
