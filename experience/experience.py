@@ -114,7 +114,7 @@ class Experience():
                 memory.append(Transition(state, action, reward, state_next, self.discount))
                 sys.stdout.write("Initialize the memory: %d / %d \r" % (len(memory), self.memory_size))
                 sys.stdout.flush()
-            print "Initialize the memory: done."
+        print "Initialize the memory: done."
         return memory
     
 

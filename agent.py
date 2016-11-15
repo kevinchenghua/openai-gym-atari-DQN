@@ -4,6 +4,7 @@ from utils.utils import itemlist
 from optimizer.optimizers import rmsprop
 from experience.experience import Experience, Transition
 
+import sys
 import numpy as np
 import theano
 import theano.tensor as T
@@ -107,14 +108,14 @@ class Agent():
         
         target = reward + discount * Q_target_next_max
         loss = T.sqr(target - Q_a).mean()
-        grads = T.grad(cost=None, wrt=itemlist(Q_weights), disconnected_inputs='raise', known_grads={Q_a: target-Q_a})
+        grads = T.grad(cost=None, wrt=itemlist(Q_weights), disconnected_inputs='raise', known_grads={Q_a: Q_a-target})
         
         f_grad_shared, f_update = rmsprop(lr, Q_weights, grads, inputs, loss)
         f_Q_max = theano.function([state], Q_max)
         
         return f_grad_shared, f_update, f_Q_max
         
-    def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame, checkpoint_frame, record_epoch):
+    def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame, checkpoint_frame):
         self.env.monitor.start('result/%s'%(self.name), force=True)
         frame = 0
         history_Q_ave = []
@@ -134,7 +135,7 @@ class Agent():
             loss = np.array([])
             while not done:
                 # play with one step
-                self.env.render()
+                #self.env.render()
                 state = self.memory.preprocess(obs)
                 if frame < er_end:
                     er_rate = er_start*(er_frame - frame)/er_frame + er_end*frame/er_frame
