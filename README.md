@@ -8,8 +8,13 @@ The algorithm is described in ["Human-level control through deep reinforcement l
 * [gym[atari]](https://github.com/openai/gym)
 
 ## Usage
+You can play all the atari game (without ram) list [here](https://gym.openai.com/envs#atari). Take `Assault-v0` as example, to train:
 ```
-python test.py
+python main.py --env 'Assault-v0'
+```
+reload the agent and evaluate (play) without training:
+```
+python main.py --env 'Assault-v0' -t false
 ```
 
 ## Result
