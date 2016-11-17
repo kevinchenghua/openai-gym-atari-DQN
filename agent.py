@@ -4,6 +4,7 @@ from utils.utils import itemlist
 from optimizer.optimizers import rmsprop
 from experience.experience import Experience, Transition
 
+import os
 import sys
 import numpy as np
 import theano
@@ -12,10 +13,12 @@ import theano.tensor as T
 theano.config.floatX = 'float32'
 
 class Agent():
-    def __init__(self, env, name):
+    def __init__(self, env, name, is_train=True, is_reload=True):
         # environment
         self.name = name
         self.env = env
+        self.is_train = is_train
+        self.is_reload = is_reload
         # model parameters
         self.input_width = 84
         self.input_height = 84
@@ -47,9 +50,14 @@ class Agent():
         self.memory = Experience(env, self.memory_size, self.history_length, self.input_width, self.input_height, self.discount)
         self.evaluation_memory = Experience(env, self.evaluation_memory_size, self.history_length, self.input_width, self.input_height, self.discount)
         
+        # reload weights
+        if self.is_reload and os.path.isfile('result/%s/log.npz'%(self.name)):
+            self.load_weights('result/%s/log.npz'%(self.name))
+        
         # training the agent
-        self._train(self.history_length, self.episodes, self.batch_size, self.evaluate_batch_size, 
-                    self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame, self.checkpoint_frame)
+        if self.is_train:
+            self._train(self.history_length, self.episodes, self.batch_size, self.evaluate_batch_size, 
+                        self.lr, self.er_start, self.er_end, self.er_frame, self.target_update_frame, self.checkpoint_frame)
     
     def _init_Q(self, input_width, input_height, input_channel, output_dim):
         """This is a helper method for __init__.
@@ -116,13 +124,24 @@ class Agent():
         return f_grad_shared, f_update, f_Q_max
         
     def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame, checkpoint_frame):
-        self.env.monitor.start('result/%s'%(self.name), force=True)
-        frame = 0
-        history_Q_ave = []
-        history_loss = []
-        history_score = []
-        epoch_record = []
-        for i in range(episodes):
+        if self.is_reload:
+            with np.load('result/%s/log.npz'%(self.name)) as log:
+                self.env.monitor.start('result/%s'%(self.name), resume=True)
+                frame = log['frame']
+                episode = log['episode']
+                history_Q_ave = log['history_Q_ave'].tolist()
+                history_loss = log['history_loss'].tolist()
+                history_score = log['history_score'].tolist()
+                episode_record = log['episode_record'].tolist()
+        else:
+            self.env.monitor.start('result/%s'%(self.name), force=True)
+            frame = 0
+            episode = 0
+            history_Q_ave = []
+            history_loss = []
+            history_score = []
+            episode_record = []
+        for i in range(episode, episodes):
             # initialize the episode
             print "%d episode start." % (i)
             obs = deque(maxlen=history_length)
@@ -161,8 +180,9 @@ class Agent():
                 if frame % checkpoint_frame == 0:
                     print "Saving weights...",
                     Q_weights = self.Q.get_weights()
-                    np.savez('result/%s/log.npz'%(self.name), history_Q_ave=history_Q_ave, history_loss=history_loss, 
-                                                              history_score=history_score, epoch_record=epoch_record, **Q_weights)
+                    np.savez('result/%s/log.npz'%(self.name), frame=frame, episode=i,
+                                                              history_Q_ave=history_Q_ave, history_loss=history_loss, 
+                                                              history_score=history_score, episode_record=episode_record, **Q_weights)
                     print 'done'
                     
             # display the result of this episodes
@@ -174,7 +194,7 @@ class Agent():
                 history_Q_ave.append(Q_ave)
                 history_loss.append(loss.mean())
                 history_score.append(score)
-                epoch_record.append(i)
+                episode_record.append(i)
                 print "Episode %d, evaluate average Q value: %f" % (i, Q_ave)
         self.env.monitor.close()
                 
@@ -192,3 +212,31 @@ class Agent():
         else:
             action = self.f_action(state[None, :])[0]
         return action
+        
+    def load_weights(self, path):
+        with np.load(path) as log:
+            tmp = self.Q.get_weights()
+            weights = {}
+            for key in tmp:
+                if key not in log:
+                    raise Exception("The weights can't be loaded %s is not in weights" % key)
+                elif log[key].shape != tmp[key].shape:
+                    raise Exception("The weights can't be loaded because of the shape error of %s." % key)
+                weights[key] = log[key]
+            self.Q.set_weights(weights)
+            self.Q_target.set_weights(weights)
+            
+    def evaluate(self):
+        obs = deque(maxlen=self.history_length)
+        ob = self.env.reset()
+        for i in range(self.history_length):
+            obs.append(ob)
+        done = False
+        score = 0
+        while not done:
+            self.env.render()
+            state = self.memory.preprocess(obs)
+            action = self.f_action(state[None, :])[0]
+            ob, reward, done, info = self.env.step(action)
+            obs.append(ob)
+            score += reward
