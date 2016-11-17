@@ -225,3 +225,18 @@ class Agent():
                 weights[key] = log[key]
             self.Q.set_weights(weights)
             self.Q_target.set_weights(weights)
+            
+    def evaluate(self):
+        obs = deque(maxlen=self.history_length)
+        ob = self.env.reset()
+        for i in range(self.history_length):
+            obs.append(ob)
+        done = False
+        score = 0
+        while not done:
+            self.env.render()
+            state = self.memory.preprocess(obs)
+            action = self.f_action(state[None, :])[0]
+            ob, reward, done, info = self.env.step(action)
+            obs.append(ob)
+            score += reward
