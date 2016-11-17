@@ -18,6 +18,7 @@ def parse_args(args):
     env = gym.make(parameters.env)
     
     a = agent.Agent(env, parameters.env, parameters.is_train, parameters.is_reload)
+    a.evaluate()
     
 if __name__ == '__main__':
     parse_args(sys.argv[1:])
