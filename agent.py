@@ -124,7 +124,7 @@ class Agent():
         return f_grad_shared, f_update, f_Q_max
         
     def _train(self, history_length, episodes, batch_size, evaluate_batch_size, lr, er_start, er_end, er_frame, target_update_frame, checkpoint_frame):
-        if self.is_reload:
+        if self.is_reload and os.path.isfile('result/%s/log.npz'%(self.name)):
             with np.load('result/%s/log.npz'%(self.name)) as log:
                 self.env.monitor.start('result/%s'%(self.name), resume=True)
                 frame = log['frame']
